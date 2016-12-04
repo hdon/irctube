@@ -27,6 +27,7 @@ function maybeCommand(user, cmd)
       queueSong(cmd[1]);
       break;
     case '!skip':
+      popSong();
       break;
     default:
       bot.say(user, "no such command");
@@ -57,37 +58,74 @@ function queueSong(url)
     url
   , []
   , (err, window) => {
-    var song;
+    var song, ds, m;
 
-    if (err) {
-      bot.say(ircConfig.channels[0], "sorry. couldn't queue. there was an error");
-      console.error(err);
-      return;
+    /* JSDom doesn't return promises; we could change that but this is quicker for now */
+    try {
+      if (err) {
+        throw err;
+      }
+
+      song = {
+        url: embedUrl
+      , title: null
+      , duration: null
+      };
+
+      switch (urlType)
+      {
+        case 'www.youtube.com/watch':
+          song.title = window.document.title
+          ds = window.document.body.querySelector('meta[itemprop="duration"]').getAttribute('content')
+          m = ds.match(/^PT([0-9]*)M([0-9]*)S$/)
+          if (!m)
+            throw new Error(`I don't understand the duration code "${ds}"`);
+          song.duration = +m[2]
+          if (m[1])
+            song.duration += m[1] * 60;
+          break;
+      }
+
+      bot.say(ircConfig.channels[0], 'queued ' + song.title + ' with duration ' + song.duration);
+      pushSong(song);
+    } catch (err) {
+      if (err) {
+        bot.say(ircConfig.channels[0], "sorry. couldn't queue. there was an error: " + err);
+        console.error(err);
+        return;
+      }
     }
-
-    song = {
-      url: embedUrl
-    , title: null
-    , duration: null
-    };
-
-    song.title = window.document.title
-    song.duration = window.document.body.querySelector('meta[itemprop="duration"]').getAttribute('content')
-
-    bot.say(ircConfig.channels[0], 'queued ' + song.title + ' with duration ' + song.duration);
-    playlist.push(song);
-    popSong();
   });
+}
+
+var popSongTimeout = null;
+
+function pushSong(song)
+{
+  playlist.push(song);
+  if (popSongTimeout === null)
+  {
+    console.log('popSongTimeout is null; popping song');
+    popSong();
+  }
 }
 
 function popSong()
 {
+  var song;
+
   if (playlist.length > 1)
     playlist.shift();
-  console.log('emitting play event', playlist[0]);
+  song = playlist[0];
+
+  console.log('emitting play event', song);
   io.emit('play', {
-    play: playlist[0]
+    play: song
   });
+
+  if (popSongTimeout !== null)
+    clearTimeout(popSongTimeout);
+  popSongTimeout = setTimeout(popSong, (song.duration + 0.5) * 1000);
 }
 
 function parseMetaDuration(md)
