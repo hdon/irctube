@@ -43,13 +43,28 @@ function queueSong(url)
     url
   , []
   , (err, window) => {
+    var song;
+
     if (err) {
       bot.say(ircConfig.channels[0], "sorry. couldn't queue. there was an error");
       console.error(err);
       return;
     }
-    bot.say(ircConfig.channels[0], 'queued ' + window.document.title);
+
+    song = {
+      url: url
+    , title: window.document.title
+    , duration: window.document.body.querySelector('meta[itemprop="duration"]').getAttribute('content')
+    };
+
+    bot.say(ircConfig.channels[0], 'queued ' + song.title + ' with duration ' + song.duration);
+    playlist.push(song);
   });
+}
+
+function parseMetaDuration(md)
+{
+  return md;
 }
 
 var app = express();
