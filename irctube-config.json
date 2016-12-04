@@ -1,0 +1,5 @@
+{
+  "channels": ["#general"]
+, "server": "localhost"
+, "botName": "irctube"
+}
