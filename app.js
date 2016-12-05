@@ -21,6 +21,8 @@ bot.addListener('message', (from, to, text, message) => {
 function maybeCommand(user, cmd)
 {
   cmd = cmd.split(' ');
+  if (cmd[0] != '!')
+    return;
   switch (cmd[0])
   {
     case '!queue':
